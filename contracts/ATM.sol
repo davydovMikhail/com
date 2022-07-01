@@ -20,8 +20,6 @@ contract ATM {
     address public saleToken;
     address private liqRecpnt;
 
-    
-
     constructor(address _router, address _stableToken, address _saleToken) {
         _owner = msg.sender;
         router = _router;
@@ -69,18 +67,17 @@ contract ATM {
         IERC20(stableToken).safeApprove(router, tokenPrice); // апрув стейблов для дальнейшего внесения в пул ликвидности на панкейке
         IERC20(saleToken).safeApprove(router, amountForPool); // апрув продаваемого токена, для дальнейшего внесения в пулл
 
+        IUniswapV2Router02(router).addLiquidity(
+            stableToken,
+            saleToken,
+            tokenPrice,
+            amountForPool,
+            tokenPrice,
+            amountForPool,
+            liqRecpnt,
+            block.timestamp + 30
+        );
 
-
-        // (amountA, amountB, liquidity) = IUniswapV2Router02(router).addLiquidity(
-        //     _tokenA,
-        //     _tokenB,
-        //     _amountA,
-        //     _amountB,
-        //     (_amountA * 9) / 10,
-        //     (_amountB * 9) / 10,
-        //     msg.sender,
-        //     block.timestamp + 30
-        // );
         return true;
     }
 }
