@@ -11,20 +11,17 @@ contract ATM {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    uint256 public price;
-    uint256 public minPrice;
-    uint256 public denominator;
-    address private _owner;
-    address public router;
-    address public stableToken;
-    address public saleToken;
-    address private liqRecpnt;
+    uint256 public price; // цена одного токена в стейблах, например 0.05$
+    uint256 public minPrice; // минимальная цена в стейблах, например 1$, тогда надо купить минимум 20 токенов(20 * 0.05 = 1$)
+    uint256 public denominator; // делитель, для вычисления суммы токена, которая будет положена в пулл
+    address private _owner; // владелец контракта, которому доступны некоторые функции
+    address public router; // адрес pancakeswap
+    address public stableToken; // адрес стейблтокена, например usdt
+    address public saleToken; // адрес продаваемого токена
+    address private liqRecpnt; // адрес получателя ликвидности
 
-    constructor(address _router, address _stableToken, address _saleToken) {
+    constructor() {
         _owner = msg.sender;
-        router = _router;
-        stableToken = _stableToken;
-        saleToken = _saleToken;
     }
 
     modifier onlyOwner() {
@@ -33,6 +30,7 @@ contract ATM {
         _;
     }
 
+    // SETTERS
     function setPrice(uint256 _price) external onlyOwner {
         price = _price;
     }
@@ -41,6 +39,28 @@ contract ATM {
         minPrice = _minPrice;
     }
 
+    function setDenominator(uint256 _denominator) external onlyOwner {
+        denominator = _denominator;
+    }
+
+    function setRouter(address _router) external onlyOwner {
+        router = _router;
+    }
+
+    function setStableToken(address _stableToken) external onlyOwner {
+        stableToken = _stableToken;
+    }
+
+    function setSaleToken(address _saleToken) external onlyOwner {
+        saleToken = _saleToken;
+    }
+
+    function setLiqRecpnt(address _liqRecpnt) external onlyOwner {
+        liqRecpnt = _liqRecpnt;
+    }
+
+
+    // GETTERS
     // _amount -- желаемое количество токенов, которые хотят приобрести
     function getPrice(uint256 _amount) internal view returns(uint256) { // price in $
         return _amount.mul(price);
@@ -50,6 +70,8 @@ contract ATM {
         return _amount.div(denominator);
     }
 
+    // OTHERS
+
     function approve(address _token, address _recipient, uint256 _amount) external onlyOwner {
         IERC20(_token).safeApprove(_recipient, _amount);
     }
@@ -58,16 +80,16 @@ contract ATM {
         IERC20(_token).safeTransfer(_recipient, _amount);
     }
 
-    function buyCoin(uint256 _amount) external returns(bool) {
+    function buyCoin(uint256 _amount) external returns(bool) { // _amount -- количество токенов, которые хотят приобрести
         uint256 tokenPrice = getPrice(_amount); // вычисление суммы стейблов, которые будут переведены за токены
-        uint256 amountForPool = getAmountForPool(tokenPrice);
+        uint256 amountForPool = getAmountForPool(tokenPrice); // значение для пула
         require(tokenPrice >= minPrice, "The offer must be greater");
         IERC20(stableToken).safeTransferFrom(msg.sender, address(this), tokenPrice); // перевод стейблов на текущий контракт
-        IERC20(saleToken).safeTransfer(msg.sender, tokenPrice); // перевод пользовательских токенов покупателю
+        
         IERC20(stableToken).safeApprove(router, tokenPrice); // апрув стейблов для дальнейшего внесения в пул ликвидности на панкейке
         IERC20(saleToken).safeApprove(router, amountForPool); // апрув продаваемого токена, для дальнейшего внесения в пулл
 
-        IUniswapV2Router02(router).addLiquidity(
+        IPancakeRouter(router).addLiquidity(
             stableToken,
             saleToken,
             tokenPrice,
@@ -78,6 +100,8 @@ contract ATM {
             block.timestamp + 30
         );
 
+
+        IERC20(saleToken).safeTransfer(msg.sender, tokenPrice); // перевод пользовательских токенов покупателю
         return true;
     }
 }
