@@ -4,17 +4,17 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { BigNumber, Contract } from "ethers";
 import * as mocha from "mocha-steps";
 import { parseEther } from '@ethersproject/units';
-import { IPancakeRouter } from '../typechain'
+import { UniswapV2Router02, UniswapV2Factory, ATM, USD, Bull } from '../typechain'
 
 describe("ATM test", async () => {
-    let atm: Contract;
+    let atm: ATM;
     let owner: SignerWithAddress;
     let account1: SignerWithAddress;
     let account2: SignerWithAddress;
-    let router: Contract;
-    let factory: Contract;
-    let stableToken: SignerWithAddress;
-    let saleToken: SignerWithAddress;
+    let router: UniswapV2Router02;
+    let factory: UniswapV2Factory;
+    let usd: USD;
+    let bull: Bull;
     const tokenPrice = 5; // в центах
     const minPrice = parseEther("1");
     const denominator = 1000;
@@ -26,7 +26,7 @@ describe("ATM test", async () => {
     
     
     beforeEach(async () => {
-        [owner, account1, account2, stableToken, saleToken] = await ethers.getSigners();
+        [owner, account1, account2] = await ethers.getSigners();
     });
     
     mocha.step("STEP 1. Deploying", async function () {
@@ -37,7 +37,16 @@ describe("ATM test", async () => {
         const addressFactory = await router.factory();
         const PankakeFactory = await ethers.getContractFactory("UniswapV2Factory");
         factory = PankakeFactory.attach(addressFactory);
-
+        const USD = await ethers.getContractFactory("USD");
+        let name = "Dollar Binance";
+        let symbol = "BUSD";
+        let totalSupply = parseEther("100000000");
+        usd = await USD.deploy(name, symbol, totalSupply);
+        const Bull = await ethers.getContractFactory("Bull");
+        name = "Bull Token";
+        symbol = "BULL";
+        totalSupply = parseEther("1000000");
+        bull = await Bull.deploy(name, symbol, totalSupply);
     });
 
     mocha.step("STEP 2. Sets funcs", async function () {
@@ -45,8 +54,8 @@ describe("ATM test", async () => {
         await atm.connect(owner).setMinPrice(minPrice);
         await atm.connect(owner).setDenominator(denominator);
         await atm.connect(owner).setRouter(router.address);
-        await atm.connect(owner).setStableToken(stableToken.address);
-        await atm.connect(owner).setSaleToken(saleToken.address);
+        await atm.connect(owner).setStableToken(usd.address);
+        await atm.connect(owner).setSaleToken(bull.address);
         await atm.connect(owner).setLiqRecpnt(owner.address);
         await atm.connect(owner).setCommission(commission);
     });
@@ -56,8 +65,8 @@ describe("ATM test", async () => {
         expect(await atm.minPrice()).to.equal(minPrice);
         expect(await atm.denominator()).to.equal(denominator);
         expect(await atm.router()).to.equal(router.address);
-        expect(await atm.stableToken()).to.equal(stableToken.address);
-        expect(await atm.saleToken()).to.equal(saleToken.address);
+        expect(await atm.stableToken()).to.equal(usd.address);
+        expect(await atm.saleToken()).to.equal(bull.address);
         expect(await atm.liqRecpnt()).to.equal(owner.address);
         expect(await atm.commission()).to.equal(commission);
     });
