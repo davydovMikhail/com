@@ -4,7 +4,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { BigNumber, Contract } from "ethers";
 import * as mocha from "mocha-steps";
 import { parseEther } from '@ethersproject/units';
-// import { IPancakeRouter } from '../typechain'
+import { IPancakeRouter } from '../typechain'
 
 describe("ATM test", async () => {
     let atm: Contract;
@@ -12,9 +12,9 @@ describe("ATM test", async () => {
     let account1: SignerWithAddress;
     let account2: SignerWithAddress;
     let router: Contract;
+    let factory: Contract;
     let stableToken: SignerWithAddress;
     let saleToken: SignerWithAddress;
-
     const tokenPrice = 5; // в центах
     const minPrice = parseEther("1");
     const denominator = 1000;
@@ -25,10 +25,6 @@ describe("ATM test", async () => {
     }
     
     
-    // const router = await ethers.getContractAt("IPancakeRouter", process.env.ROUTER_ADDRESS as string);
-    // factory = <IUniswapV2Factory>(await ethers.getContractAt("IUniswapV2Factory", process.env.FACTORY_ADDRESS as string));
-    
-
     beforeEach(async () => {
         [owner, account1, account2, stableToken, saleToken] = await ethers.getSigners();
     });
@@ -36,18 +32,19 @@ describe("ATM test", async () => {
     mocha.step("STEP 1. Deploying", async function () {
         const ATM = await ethers.getContractFactory("ATM");
         atm = await ATM.deploy();
-        // const PankakeRouter = await ethers.getContractFactory("MyContract");
-        // const router = await PankakeRouter.attach(process.env.ROUTER_ADDRESS as string);
-        // console.log(router);
-        
-        
+        const PankakeRouter = await ethers.getContractFactory("UniswapV2Router02");
+        router = PankakeRouter.attach(process.env.ROUTER_ADDRESS as string);
+        const addressFactory = await router.factory();
+        const PankakeFactory = await ethers.getContractFactory("UniswapV2Factory");
+        factory = PankakeFactory.attach(addressFactory);
+
     });
 
     mocha.step("STEP 2. Sets funcs", async function () {
         await atm.connect(owner).setPrice(tokenPrice);
         await atm.connect(owner).setMinPrice(minPrice);
         await atm.connect(owner).setDenominator(denominator);
-        // await atm.connect(owner).setRouter(router.address);
+        await atm.connect(owner).setRouter(router.address);
         await atm.connect(owner).setStableToken(stableToken.address);
         await atm.connect(owner).setSaleToken(saleToken.address);
         await atm.connect(owner).setLiqRecpnt(owner.address);
@@ -58,12 +55,11 @@ describe("ATM test", async () => {
         expect(await atm.price()).to.equal(tokenPrice);
         expect(await atm.minPrice()).to.equal(minPrice);
         expect(await atm.denominator()).to.equal(denominator);
-        // expect(await atm.router()).to.equal(router.address);
+        expect(await atm.router()).to.equal(router.address);
         expect(await atm.stableToken()).to.equal(stableToken.address);
         expect(await atm.saleToken()).to.equal(saleToken.address);
         expect(await atm.liqRecpnt()).to.equal(owner.address);
         expect(await atm.commission()).to.equal(commission);
-        // console.log(router.address);
     });
 
     // mocha.step("Calculation view funcs", async function () {
