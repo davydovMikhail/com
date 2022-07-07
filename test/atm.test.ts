@@ -4,21 +4,25 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { BigNumber, Contract } from "ethers";
 import * as mocha from "mocha-steps";
 import { parseEther } from '@ethersproject/units';
-import { UniswapV2Router02, UniswapV2Factory, ATM, USD, Bull } from '../typechain'
+import { UniswapV2Router02, UniswapV2Factory, ATM, USD, Bull, UniswapV2Pair } from '../typechain'
 
 describe("ATM test", async () => {
     let atm: ATM;
     let owner: SignerWithAddress;
     let account1: SignerWithAddress;
     let account2: SignerWithAddress;
+    let account3: SignerWithAddress;
+    let account4: SignerWithAddress;
+    let account5: SignerWithAddress;
     let router: UniswapV2Router02;
     let factory: UniswapV2Factory;
     let usd: USD;
     let bull: Bull;
-    const tokenPrice = 5; // в центах
+    let lpToken: UniswapV2Pair;
+    const tokenPrice = 1; // в центах
     const minPrice = parseEther("1");
-    const denominator = 1000;
-    const commission = 3; // коммиссия в процентах
+    const denominator = 1;
+    const commission = 3; // коммиссия в процентах 
 
     function toWei(amount: number): BigNumber {
         return ethers.utils.parseUnits(amount.toString(), 18);
@@ -26,7 +30,7 @@ describe("ATM test", async () => {
     
     
     beforeEach(async () => {
-        [owner, account1, account2] = await ethers.getSigners();
+        [owner, account1, account2, account3, account4, account5] = await ethers.getSigners();
     });
     
     mocha.step("STEP 1. Deploying", async function () {
@@ -69,6 +73,48 @@ describe("ATM test", async () => {
         expect(await atm.saleToken()).to.equal(bull.address);
         expect(await atm.liqRecpnt()).to.equal(owner.address);
         expect(await atm.commission()).to.equal(commission);
+    });
+
+    mocha.step("STEP 4. Creating liquidity", async function () {
+        const initLiqUSD = parseEther("10");
+        const initLiqBull = parseEther("10");
+        let currentTimestamp = Math.floor(Date.now() / 1000);
+        await usd.connect(owner).approve(router.address, initLiqUSD);
+        await bull.connect(owner).approve(router.address, initLiqBull);
+        await router.addLiquidity(
+            usd.address,
+            bull.address,
+            initLiqUSD,
+            initLiqBull,
+            initLiqUSD,
+            initLiqBull,
+            owner.address,
+            currentTimestamp + 30
+        )
+    });
+
+    mocha.step("STEP 5. Checking LP balance", async function () {
+        const pairAddress = await factory.getPair(usd.address, bull.address);
+        const PankakePair = await ethers.getContractFactory("UniswapV2Pair");
+        lpToken = PankakePair.attach(pairAddress);
+        const balanceOwner = await lpToken.balanceOf(owner.address);
+        const theoryBalance = parseEther(Math.sqrt(10).toString());
+        console.log(balanceOwner, '~=', theoryBalance);
+    });
+
+    mocha.step("STEP 6. Buying Bull Tokens for USD", async function () {
+        await usd.connect(owner).transfer(account1.address, parseEther('10000'));
+        await usd.connect(owner).transfer(account2.address, parseEther('10000'));
+        await usd.connect(owner).transfer(account3.address, parseEther('10000'));
+        await usd.connect(owner).transfer(account4.address, parseEther('10000'));
+        await usd.connect(owner).transfer(account5.address, parseEther('10000'));
+        await bull.connect(owner).transfer(atm.address, parseEther('100000'));
+
+        expect(await usd.balanceOf(atm.address)).to.equal(0);
+        await usd.connect(account1).approve(atm.address, parseEther('10000'));
+        await expect(atm.connect(account1).buyCoin(parseEther("99"))).to.be.revertedWith('The offer must be greater');
+        const amountToken = parseEther("100");
+        await atm.connect(account1).buyCoin(amountToken);
     });
 
     // mocha.step("Calculation view funcs", async function () {

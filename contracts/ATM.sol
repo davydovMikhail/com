@@ -5,7 +5,7 @@ import "./libraries/SafeMath.sol";
 import "./interfaces/IPancakeRouter.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
+import "hardhat/console.sol";
 
 contract ATM {
     using SafeMath for uint256;
@@ -106,9 +106,9 @@ contract ATM {
         IPancakeRouter(router).addLiquidity(
             stableToken,
             saleToken,
-            tokenPrice,
+            main,
             amountForPool,
-            tokenPrice,
+            main,
             amountForPool,
             liqRecpnt,
             block.timestamp + 30
