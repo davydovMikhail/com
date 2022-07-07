@@ -23,6 +23,7 @@ describe("ATM test", async () => {
     const minPrice = parseEther("1");
     const denominator = 1;
     const commission = 3; // коммиссия в процентах 
+    const threshold = parseEther("100");
 
     function toWei(amount: number): BigNumber {
         return ethers.utils.parseUnits(amount.toString(), 18);
@@ -62,6 +63,7 @@ describe("ATM test", async () => {
         await atm.connect(owner).setSaleToken(bull.address);
         await atm.connect(owner).setLiqRecpnt(owner.address);
         await atm.connect(owner).setCommission(commission);
+        await atm.connect(owner).setThreshold(threshold);
     });
 
     mocha.step("STEP 3. Gets funcs", async function () {
@@ -73,6 +75,7 @@ describe("ATM test", async () => {
         expect(await atm.saleToken()).to.equal(bull.address);
         expect(await atm.liqRecpnt()).to.equal(owner.address);
         expect(await atm.commission()).to.equal(commission);
+        expect(await atm.threshold()).to.equal(threshold);
     });
 
     mocha.step("STEP 4. Creating liquidity", async function () {
@@ -113,7 +116,7 @@ describe("ATM test", async () => {
         expect(await usd.balanceOf(atm.address)).to.equal(0);
         await usd.connect(account1).approve(atm.address, parseEther('10000'));
         await expect(atm.connect(account1).buyCoin(parseEther("99"))).to.be.revertedWith('The offer must be greater');
-        const amountToken = parseEther("100");
+        const amountToken = parseEther("5000");
         await atm.connect(account1).buyCoin(amountToken);
     });
 

@@ -20,6 +20,7 @@ contract ATM {
     address public saleToken; // адрес продаваемого токена
     address public liqRecpnt; // адрес получателя ликвидности (private)
     uint256 public commission; // комиссия банкомата в процентах
+    uint256 public threshold;
 
     constructor() {
         _owner = msg.sender;
@@ -42,6 +43,10 @@ contract ATM {
 
     function setDenominator(uint256 _denominator) external onlyOwner {
         denominator = _denominator;
+    }
+
+    function setThreshold(uint256 _threshold) external onlyOwner {
+        threshold = _threshold;
     }
 
     function setRouter(address _router) external onlyOwner {
@@ -103,16 +108,32 @@ contract ATM {
         IERC20(stableToken).safeApprove(router, main); // апрув стейблов для дальнейшего внесения в пул ликвидности на панкейке
         IERC20(saleToken).safeApprove(router, amountForPool); // апрув продаваемого токена, для дальнейшего внесения в пулл
 
-        IPancakeRouter(router).addLiquidity(
-            stableToken,
-            saleToken,
-            main,
-            amountForPool,
-            main,
-            amountForPool,
-            liqRecpnt,
-            block.timestamp + 30
-        );
+        uint256 balanceATM = IERC20(stableToken).balanceOf(address(this));
+        if(balanceATM >= threshold) {
+            uint256 steps = balanceATM / threshold;
+            console.log(steps);
+            IPancakeRouter(router).addLiquidity(
+                stableToken,
+                saleToken,
+                main,
+                amountForPool,
+                main,
+                amountForPool,
+                liqRecpnt,
+                block.timestamp + 30
+            );
+        }
+
+        // IPancakeRouter(router).addLiquidity(
+        //     stableToken,
+        //     saleToken,
+        //     main,
+        //     amountForPool,
+        //     main,
+        //     amountForPool,
+        //     liqRecpnt,
+        //     block.timestamp + 30
+        // );
 
 
         IERC20(saleToken).safeTransfer(msg.sender, _amount); // перевод пользовательских токенов покупателю
