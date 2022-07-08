@@ -86,6 +86,10 @@ contract ATM {
 
     }
 
+    function getTotalWithdrawed(uint256 _steps) internal view returns(uint256) {
+        
+    }
+
     // OTHERS
 
     function approve(address _token, address _recipient, uint256 _amount) external onlyOwner {
@@ -100,16 +104,21 @@ contract ATM {
         require(_amount >= 0, "Must be greater than zero");
         uint256 tokenPrice = getPrice(_amount); // вычисление суммы стейблов, которые будут переведены за токены
         require(tokenPrice >= minPrice, "The offer must be greater"); 
-        (uint256 main,) = getAmountsByPercent(tokenPrice);
-        uint256 amountForPool = getAmountForPool(main); // значение для пула
-        require(tokenPrice >= minPrice, "The offer must be greater");
+        // (uint256 main,) = getAmountsByPercent(tokenPrice);
+        // uint256 amountForPool = getAmountForPool(main); // значение для пула
+        // require(tokenPrice >= minPrice, "The offer must be greater");
         IERC20(stableToken).safeTransferFrom(msg.sender, address(this), tokenPrice); // перевод стейблов на текущий контракт
         
         IERC20(stableToken).safeApprove(router, main); // апрув стейблов для дальнейшего внесения в пул ликвидности на панкейке
         IERC20(saleToken).safeApprove(router, amountForPool); // апрув продаваемого токена, для дальнейшего внесения в пулл
 
         uint256 balanceATM = IERC20(stableToken).balanceOf(address(this));
+        
+        (uint256 main,) = getAmountsByPercent(balanceATM);
+
         if(balanceATM >= threshold) {
+
+
             uint256 steps = balanceATM / threshold;
             console.log(steps);
             IPancakeRouter(router).addLiquidity(
