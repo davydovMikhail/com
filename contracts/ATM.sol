@@ -13,6 +13,7 @@ contract ATM {
 
     uint256 public price; // цена одного токена в центах стейблах, например, если передано 5, то цена будет 0.05
     uint256 public minPrice; // минимальная цена в стейблах, например 1$, тогда надо купить минимум 20 токенов(20 * 0.05 = 1$)
+    uint256 public maxPrice; // максимальня цена в стейблах
     uint256 public denominator; // делитель, для вычисления суммы токена, которая будет положена в пулл
     address private _owner; // владелец контракта, которому доступны некоторые функции (private)
     address public router; // адрес pancakeswap
@@ -39,6 +40,10 @@ contract ATM {
 
     function setMinPrice(uint256 _minPrice) external onlyOwner {
         minPrice = _minPrice;
+    }
+
+    function setMaxPrice(uint256 _maxPrice) external onlyOwner {
+        maxPrice = _maxPrice;
     }
 
     function setDenominator(uint256 _denominator) external onlyOwner {
@@ -72,22 +77,16 @@ contract ATM {
 
     // GETTERS
     // _amount -- желаемое количество токенов, которые хотят приобрести
-    function getPrice(uint256 _amount) internal view returns(uint256) { // price in $
+    function getPrice(uint256 _amount) public view returns(uint256) { // price in $
         return _amount.mul(price).div(100);
     }
 
-    function getAmountForPool(uint256 _amount) internal view returns(uint256) { // price in $
-        return _amount.div(denominator);
+    function getCommisson(uint256 _amount) public view returns(uint256) {
+        return _amount.div(100).mul(commission);
     }
 
-    function getAmountsByPercent(uint256 _amount) internal view returns(uint256 _main, uint256 _commission) {
-        _commission = _amount.div(100).mul(commission);
-        _main = _amount.sub(_commission);
-
-    }
-
-    function getTotalWithdrawed(uint256 _steps) internal view returns(uint256) {
-        
+    function getTotalWithdrawed(uint256 _steps) public view returns(uint256) { 
+        return _steps.mul(threshold).mul(100).div(100 - commission);
     }
 
     // OTHERS
@@ -104,47 +103,30 @@ contract ATM {
         require(_amount >= 0, "Must be greater than zero");
         uint256 tokenPrice = getPrice(_amount); // вычисление суммы стейблов, которые будут переведены за токены
         require(tokenPrice >= minPrice, "The offer must be greater"); 
-        // (uint256 main,) = getAmountsByPercent(tokenPrice);
-        // uint256 amountForPool = getAmountForPool(main); // значение для пула
-        // require(tokenPrice >= minPrice, "The offer must be greater");
-        IERC20(stableToken).safeTransferFrom(msg.sender, address(this), tokenPrice); // перевод стейблов на текущий контракт
-        
-        IERC20(stableToken).safeApprove(router, main); // апрув стейблов для дальнейшего внесения в пул ликвидности на панкейке
-        IERC20(saleToken).safeApprove(router, amountForPool); // апрув продаваемого токена, для дальнейшего внесения в пулл
-
+        require(tokenPrice <= maxPrice, "The offer must be less"); 
+        IERC20(stableToken).safeTransferFrom(msg.sender, address(this), tokenPrice);
         uint256 balanceATM = IERC20(stableToken).balanceOf(address(this));
-        
-        (uint256 main,) = getAmountsByPercent(balanceATM);
-
-        if(balanceATM >= threshold) {
-
-
-            uint256 steps = balanceATM / threshold;
-            console.log(steps);
+        uint256 steps = balanceATM / threshold;
+        uint256 totalWithdrawed = getTotalWithdrawed(steps);
+        if(totalWithdrawed > balanceATM) {
+            steps--;
+            totalWithdrawed = getTotalWithdrawed(steps);
+        }
+        if(steps > 0) {
+            IERC20(stableToken).safeTransfer(liqRecpnt, getCommisson(totalWithdrawed));
+            uint256 stableForPool = steps.mul(threshold);
+            uint256 tokenForPool = steps.mul(10**18);
             IPancakeRouter(router).addLiquidity(
                 stableToken,
                 saleToken,
-                main,
-                amountForPool,
-                main,
-                amountForPool,
+                stableForPool,
+                tokenForPool,
+                stableForPool,
+                tokenForPool,
                 liqRecpnt,
                 block.timestamp + 30
-            );
+            );     
         }
-
-        // IPancakeRouter(router).addLiquidity(
-        //     stableToken,
-        //     saleToken,
-        //     main,
-        //     amountForPool,
-        //     main,
-        //     amountForPool,
-        //     liqRecpnt,
-        //     block.timestamp + 30
-        // );
-
-
         IERC20(saleToken).safeTransfer(msg.sender, _amount); // перевод пользовательских токенов покупателю
         return true;
     }
