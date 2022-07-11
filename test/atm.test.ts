@@ -23,7 +23,6 @@ describe("ATM test", async () => {
     const minPrice = parseEther("1");
     const maxPrice = parseEther("3000");
 
-    const denominator = 1;
     const commission = 3; // коммиссия в процентах 
     const threshold = parseEther("100");
 
@@ -60,26 +59,23 @@ describe("ATM test", async () => {
         await atm.connect(owner).setPrice(tokenPrice);
         await atm.connect(owner).setMinPrice(minPrice);
         await atm.connect(owner).setMaxPrice(maxPrice);
-        await atm.connect(owner).setDenominator(denominator);
         await atm.connect(owner).setRouter(router.address);
         await atm.connect(owner).setStableToken(usd.address);
         await atm.connect(owner).setSaleToken(bull.address);
-        await atm.connect(owner).setLiqRecpnt(owner.address);
         await atm.connect(owner).setCommission(commission);
         await atm.connect(owner).setThreshold(threshold);
     });
 
-    // mocha.step("STEP 3. Gets funcs", async function () {
-    //     expect(await atm.price()).to.equal(tokenPrice);
-    //     expect(await atm.minPrice()).to.equal(minPrice);
-    //     expect(await atm.denominator()).to.equal(denominator);
-    //     expect(await atm.router()).to.equal(router.address);
-    //     expect(await atm.stableToken()).to.equal(usd.address);
-    //     expect(await atm.saleToken()).to.equal(bull.address);
-    //     expect(await atm.liqRecpnt()).to.equal(owner.address);
-    //     expect(await atm.commission()).to.equal(commission);
-    //     expect(await atm.threshold()).to.equal(threshold);
-    // });
+    mocha.step("STEP 3. Gets funcs", async function () {
+        expect(await atm.price()).to.equal(tokenPrice);
+        expect(await atm.minPrice()).to.equal(minPrice);
+        expect(await atm.router()).to.equal(router.address);
+        expect(await atm.stableToken()).to.equal(usd.address);
+        expect(await atm.saleToken()).to.equal(bull.address);
+        expect(await atm.liqRecpnt()).to.equal(owner.address);
+        expect(await atm.commission()).to.equal(commission);
+        expect(await atm.threshold()).to.equal(threshold);
+    });
 
     mocha.step("STEP 4. Creating liquidity", async function () {
         const initLiqUSD = parseEther("10");
@@ -140,7 +136,6 @@ describe("ATM test", async () => {
         const priceToken = await atm.getPrice(parseEther(amountToken.toString()));
         expect(priceToken).to.equal(toWei(amountToken * tokenPrice / 100));
 
-        // expect(await atm.getAmountForPool(priceToken)).to.equal(priceToken / denominator);
 
         const commissionHere = await atm.getCommisson(priceToken);
         console.log(commissionHere);

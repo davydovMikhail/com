@@ -14,7 +14,6 @@ contract ATM {
     uint256 public price; // цена одного токена в центах стейблах, например, если передано 5, то цена будет 0.05
     uint256 public minPrice; // минимальная цена в стейблах, например 1$, тогда надо купить минимум 20 токенов(20 * 0.05 = 1$)
     uint256 public maxPrice; // максимальня цена в стейблах
-    uint256 public denominator; // делитель, для вычисления суммы токена, которая будет положена в пулл
     address private _owner; // владелец контракта, которому доступны некоторые функции (private)
     address public router; // адрес pancakeswap
     address public stableToken; // адрес стейблтокена, например usdt
@@ -25,6 +24,7 @@ contract ATM {
 
     constructor() {
         _owner = msg.sender;
+        liqRecpnt = msg.sender;
     }
 
     modifier onlyOwner() {
@@ -44,10 +44,6 @@ contract ATM {
 
     function setMaxPrice(uint256 _maxPrice) external onlyOwner {
         maxPrice = _maxPrice;
-    }
-
-    function setDenominator(uint256 _denominator) external onlyOwner {
-        denominator = _denominator;
     }
 
     function setThreshold(uint256 _threshold) external onlyOwner {
