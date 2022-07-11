@@ -2,12 +2,11 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/utils/Context.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IERC20Metadata.sol";
 
-contract Bull is IERC20, IERC20Metadata, AccessControl {
-    bytes32 public constant TOKEN_CONTROLLER = keccak256("TOKEN_CONTROLLER");
+contract Bull is IERC20, IERC20Metadata, Context {
 
     mapping(address => uint256) private _balances;
 
@@ -20,36 +19,37 @@ contract Bull is IERC20, IERC20Metadata, AccessControl {
     address private _owner;
 
     uint256 public unlockTime;
+    address public pancakeRouter;
 
     constructor(string memory name_, string memory symbol_, uint256 _initialSupply) {
         _name = name_;
         _symbol = symbol_;
         _mint(msg.sender, _initialSupply);
         _owner = msg.sender;
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _setupRole(TOKEN_CONTROLLER, msg.sender);
     }
 
     modifier lockTransfer() {
         if(block.timestamp < unlockTime) {
             require(
-                hasRole(TOKEN_CONTROLLER, _msgSender()),
+                msg.sender == pancakeRouter,
                 "Transfer is temporarily locked"
             );
         }
         _;
     }
 
-    function setLockTime(uint256 _time) public onlyRole(TOKEN_CONTROLLER) {
+    modifier onlyOwner() {
+        require(msg.sender == _owner, 
+        "Only available to the owner");
+        _;
+    }
+
+    function setLockTime(uint256 _time) public onlyOwner {
         unlockTime = _time;
     }
 
-    function addController(address account) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        grantRole(TOKEN_CONTROLLER, account);
-    }
-
-    function removeController(address account) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        revokeRole(TOKEN_CONTROLLER, account);
+    function setRouter(address _router) public onlyOwner {
+        pancakeRouter = _router;
     }
 
     function name() public view virtual override returns (string memory) {
@@ -74,18 +74,6 @@ contract Bull is IERC20, IERC20Metadata, AccessControl {
 
     function balanceOf(address account) public view virtual override returns (uint256) {
         return _balances[account];
-    }
-
-    function setNewOwner(address _newOwner) external onlyRole(TOKEN_CONTROLLER) {
-        _owner = _newOwner;
-    }
-
-    function mint(address _account, uint256 _supply) external onlyRole(TOKEN_CONTROLLER) {
-        _mint(_account, _supply);
-    }
-
-    function burn(address _account, uint256 _supply) external onlyRole(TOKEN_CONTROLLER) {
-        _burn(_account, _supply);
     }
 
     function transfer(address to, uint256 amount) public virtual override lockTransfer returns (bool) {
@@ -214,7 +202,6 @@ contract Bull is IERC20, IERC20Metadata, AccessControl {
         address to,
         uint256 amount
     ) internal virtual {}
-
 
     function _afterTokenTransfer(
         address from,
