@@ -22,9 +22,18 @@ contract ATM {
     uint256 public commission; // комиссия банкомата в процентах
     uint256 public threshold;
 
-    constructor() {
+    constructor(uint256 _price, 
+        uint256 _minPrice, 
+        uint256 _maxPrice, 
+        uint256 _commission, 
+        uint256 _threshold) {
         _owner = msg.sender;
         liqRecpnt = msg.sender;
+        price = _price;
+        minPrice = _minPrice;
+        maxPrice = _maxPrice;
+        commission = _commission;
+        threshold = _threshold;
     }
 
     modifier onlyOwner() {
