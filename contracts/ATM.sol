@@ -13,7 +13,6 @@ contract ATM {
 
     uint256 public price; // цена одного токена в центах стейблах, например, если передано 5, то цена будет 0.05
     uint256 public minPrice; // минимальная цена в стейблах, например 1$, тогда надо купить минимум 20 токенов(20 * 0.05 = 1$)
-    uint256 public maxPrice; // максимальня цена в стейблах
     address private _owner; // владелец контракта, которому доступны некоторые функции (private)
     address public router; // адрес pancakeswap
     address public stableToken; // адрес стейблтокена, например usdt
@@ -26,7 +25,6 @@ contract ATM {
 
     constructor(uint256 _price, 
         uint256 _minPrice, 
-        uint256 _maxPrice, 
         uint256 _commissionATM,
         uint256 _commissionClaiming, 
         uint256 _threshold) {
@@ -34,7 +32,6 @@ contract ATM {
         liqRecpnt = msg.sender;
         price = _price;
         minPrice = _minPrice;
-        maxPrice = _maxPrice;
         commissionATM = _commissionATM;
         commissionClaiming = _commissionClaiming;
         threshold = _threshold;
@@ -53,10 +50,6 @@ contract ATM {
 
     function setMinPrice(uint256 _minPrice) external onlyOwner {
         minPrice = _minPrice;
-    }
-
-    function setMaxPrice(uint256 _maxPrice) external onlyOwner {
-        maxPrice = _maxPrice;
     }
 
     function setThreshold(uint256 _threshold) external onlyOwner {
@@ -94,10 +87,6 @@ contract ATM {
         return _amount.mul(price).div(100);
     }
 
-    // function getCommisson(uint256 _amount) public view returns(uint256) {
-    //     return _amount.div(100).mul(commission);
-    // }
-
     function getByPercent(uint256 _amount, uint256 _percent) public pure returns(uint256) {
         return _amount.div(100).mul(_percent);
     }
@@ -120,14 +109,16 @@ contract ATM {
         require(_amount >= 0, "Must be greater than zero");
         uint256 tokenPrice = getPrice(_amount); // вычисление суммы стейблов, которые будут переведены за токены
         require(tokenPrice >= minPrice, "The offer must be greater"); 
-        require(tokenPrice <= maxPrice, "The offer must be less"); 
         IERC20(stableToken).safeTransferFrom(msg.sender, address(this), tokenPrice);
         uint256 balanceATM = IERC20(stableToken).balanceOf(address(this));
         uint256 steps = balanceATM / threshold;
         uint256 totalWithdrawed = getTotalWithdrawed(steps);
         while(totalWithdrawed > balanceATM) {
             steps--;
+            console.log('steps', steps);
             totalWithdrawed = getTotalWithdrawed(steps);
+            console.log('totalWithdrawed', totalWithdrawed);
+            console.log('amount', _amount);
         }
         if(steps > 0) {
             IERC20(stableToken).safeTransfer(liqRecpnt, getByPercent(totalWithdrawed, commissionATM));

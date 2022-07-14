@@ -23,7 +23,6 @@ describe("ATM test", async () => {
     const tokenPrice = 1; // в центах
     const tokenPriceForClaim = 2; // в центах
     const minPrice = parseEther("1");
-    const maxPrice = parseEther("3000");
 
     const commission = 3; // коммиссия в процентах 
     const commissionForClaiming = 27;
@@ -42,7 +41,6 @@ describe("ATM test", async () => {
         atm = await ATM.deploy(
             tokenPrice,
             minPrice,
-            maxPrice,
             commission,
             commissionForClaiming,
             threshold
@@ -142,21 +140,21 @@ describe("ATM test", async () => {
         await bull.connect(owner).transfer(atm.address, parseEther('1000000'));
         expect(await usd.balanceOf(atm.address)).to.equal(0);
         await expect(atm.connect(account1).buyCoin(parseEther("99"))).to.be.revertedWith('The offer must be greater');
-        await expect(atm.connect(account1).buyCoin(parseEther("300001"))).to.be.revertedWith('The offer must be less');
+        // await expect(atm.connect(account1).buyCoin(parseEther("300001"))).to.be.revertedWith('The offer must be less');
     });
 
     mocha.step("STEP 8. Buying Bull Tokens for USD", async function() {
-        await atm.connect(account1).buyCoin(parseEther("10000"));
-        expect(await usd.balanceOf(atm.address)).to.equal(parseEther("100"));
-        await atm.connect(account2).buyCoin(parseEther("5000"));
+        await atm.connect(account1).buyCoin(parseEther("40000"));
+        // expect(await usd.balanceOf(atm.address)).to.equal(parseEther("300"));
+        await atm.connect(account2).buyCoin(parseEther("10000"));
         await atm.connect(account3).buyCoin(parseEther("15000"));
         await atm.connect(account4).buyCoin(parseEther("11000"));
         await atm.connect(account5).buyCoin(parseEther("1000"));
     });
 
     mocha.step("STEP 9. Checking balances after buying", async function() {
-        expect(await bull.balanceOf(account1.address)).to.equal(parseEther("10000"));
-        expect(await bull.balanceOf(account2.address)).to.equal(parseEther("5000"));
+        expect(await bull.balanceOf(account1.address)).to.equal(parseEther("40000"));
+        expect(await bull.balanceOf(account2.address)).to.equal(parseEther("10000"));
         expect(await bull.balanceOf(account3.address)).to.equal(parseEther("15000"));
         expect(await bull.balanceOf(account4.address)).to.equal(parseEther("11000"));
         expect(await bull.balanceOf(account5.address)).to.equal(parseEther("1000"));
@@ -164,7 +162,7 @@ describe("ATM test", async () => {
 
     mocha.step("STEP 10. Checking LP balances after all buying", async function() {
         const balanceOwner = await lpToken.balanceOf(owner.address);
-        console.log("Must be ~ 41", balanceOwner);
+        console.log("Must be ~ 51", balanceOwner);
     });
 
     mocha.step("STEP 11. Removing liquidity", async function() {
