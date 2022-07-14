@@ -19,20 +19,24 @@ contract ATM {
     address public stableToken; // адрес стейблтокена, например usdt
     address public saleToken; // адрес продаваемого токена
     address public liqRecpnt; // адрес получателя ликвидности (private)
-    uint256 public commission; // комиссия банкомата в процентах
+    address public claimer;
+    uint256 public commissionATM; // комиссия банкомата в процентах
+    uint256 public commissionClaiming;
     uint256 public threshold;
 
     constructor(uint256 _price, 
         uint256 _minPrice, 
         uint256 _maxPrice, 
-        uint256 _commission, 
+        uint256 _commissionATM,
+        uint256 _commissionClaiming, 
         uint256 _threshold) {
         _owner = msg.sender;
         liqRecpnt = msg.sender;
         price = _price;
         minPrice = _minPrice;
         maxPrice = _maxPrice;
-        commission = _commission;
+        commissionATM = _commissionATM;
+        commissionClaiming = _commissionClaiming;
         threshold = _threshold;
     }
 
@@ -75,10 +79,14 @@ contract ATM {
         liqRecpnt = _liqRecpnt;
     }
 
-    function setCommission(uint256 _commission) external onlyOwner {
-        commission = _commission;
+    function setCommission(uint256 _commissionATM, uint256 _commissionClaiming) external onlyOwner {
+        commissionATM = _commissionATM;
+        commissionClaiming = _commissionClaiming;
     }
 
+    function setClaimer(address _claimer) external onlyOwner {
+        claimer = _claimer;
+    }
 
     // GETTERS
     // _amount -- желаемое количество токенов, которые хотят приобрести
@@ -86,12 +94,16 @@ contract ATM {
         return _amount.mul(price).div(100);
     }
 
-    function getCommisson(uint256 _amount) public view returns(uint256) {
-        return _amount.div(100).mul(commission);
+    // function getCommisson(uint256 _amount) public view returns(uint256) {
+    //     return _amount.div(100).mul(commission);
+    // }
+
+    function getByPercent(uint256 _amount, uint256 _percent) public pure returns(uint256) {
+        return _amount.div(100).mul(_percent);
     }
 
     function getTotalWithdrawed(uint256 _steps) public view returns(uint256) { 
-        return _steps.mul(threshold).mul(100).div(100 - commission);
+        return _steps.mul(threshold).mul(100).div(100 - commissionATM - commissionClaiming);
     }
 
     // OTHERS
@@ -113,12 +125,13 @@ contract ATM {
         uint256 balanceATM = IERC20(stableToken).balanceOf(address(this));
         uint256 steps = balanceATM / threshold;
         uint256 totalWithdrawed = getTotalWithdrawed(steps);
-        if(totalWithdrawed > balanceATM) {
+        while(totalWithdrawed > balanceATM) {
             steps--;
             totalWithdrawed = getTotalWithdrawed(steps);
         }
         if(steps > 0) {
-            IERC20(stableToken).safeTransfer(liqRecpnt, getCommisson(totalWithdrawed));
+            IERC20(stableToken).safeTransfer(liqRecpnt, getByPercent(totalWithdrawed, commissionATM));
+            IERC20(stableToken).safeTransfer(claimer, getByPercent(totalWithdrawed, commissionClaiming));
             uint256 stableForPool = steps.mul(threshold);
             uint256 tokenForPool = steps.mul(10**18);
             IPancakeRouter(router).addLiquidity(

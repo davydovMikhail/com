@@ -4,7 +4,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { BigNumber, Contract } from "ethers";
 import * as mocha from "mocha-steps";
 import { parseEther } from '@ethersproject/units';
-import { UniswapV2Router02, UniswapV2Factory, ATM, USD, Bull, UniswapV2Pair } from '../typechain'
+import { UniswapV2Router02, UniswapV2Factory, ATM, USD, Bull, UniswapV2Pair, Claiming } from '../typechain'
 
 describe("ATM test", async () => {
     let atm: ATM;
@@ -19,11 +19,14 @@ describe("ATM test", async () => {
     let usd: USD;
     let bull: Bull;
     let lpToken: UniswapV2Pair;
+    let claiming: Claiming;
     const tokenPrice = 1; // в центах
+    const tokenPriceForClaim = 2; // в центах
     const minPrice = parseEther("1");
     const maxPrice = parseEther("3000");
 
     const commission = 3; // коммиссия в процентах 
+    const commissionForClaiming = 27;
     const threshold = parseEther("100");
 
     function toWei(amount: number): BigNumber {
@@ -41,6 +44,7 @@ describe("ATM test", async () => {
             minPrice,
             maxPrice,
             commission,
+            commissionForClaiming,
             threshold
         );
         const PankakeRouter = await ethers.getContractFactory("UniswapV2Router02");
@@ -58,6 +62,8 @@ describe("ATM test", async () => {
         symbol = "BULL";
         totalSupply = parseEther("1000000000");
         bull = await Bull.deploy(name, symbol, totalSupply);
+        const Claiming = await ethers.getContractFactory("Claiming");
+        claiming = await Claiming.deploy(tokenPriceForClaim, usd.address, bull.address);
     });
 
     mocha.step("STEP 2. Sets funcs", async function () {
@@ -69,6 +75,7 @@ describe("ATM test", async () => {
         await atm.connect(owner).setSaleToken(bull.address);
         // await atm.connect(owner).setCommission(commission);
         // await atm.connect(owner).setThreshold(threshold);
+        await atm.connect(owner).setClaimer(claiming.address);
     });
 
     mocha.step("STEP 3. Gets funcs", async function () {
@@ -78,8 +85,13 @@ describe("ATM test", async () => {
         expect(await atm.stableToken()).to.equal(usd.address);
         expect(await atm.saleToken()).to.equal(bull.address);
         expect(await atm.liqRecpnt()).to.equal(owner.address);
-        expect(await atm.commission()).to.equal(commission);
+        expect(await atm.commissionATM()).to.equal(commission);
         expect(await atm.threshold()).to.equal(threshold);
+
+        expect(await claiming.price()).to.equal(tokenPriceForClaim);
+        expect(await claiming.stableToken()).to.equal(usd.address);
+        expect(await claiming.saleToken()).to.equal(bull.address);
+        expect(await atm.claimer()).to.equal(claiming.address);
     });
 
     mocha.step("STEP 4. Creating liquidity", async function () {
@@ -164,7 +176,7 @@ describe("ATM test", async () => {
             usd.address,
             bull.address,
             amountLiquidity,
-            parseEther("350"),
+            parseEther("200"),
             parseEther("1"),
             owner.address,
             currentTimestamp
@@ -179,10 +191,10 @@ describe("ATM test", async () => {
         const priceToken = await atm.getPrice(parseEther(amountToken.toString()));
         expect(priceToken).to.equal(toWei(amountToken * tokenPrice / 100));
 
-        const commissionHere = await atm.getCommisson(priceToken);
-        console.log(commissionHere);
+        // const commissionHere = await atm.getCommisson(priceToken);
+        // console.log(commissionHere);
 
-        expect(commissionHere).to.equal(toWei(amountToken * tokenPrice * commission / (100 * 100)));
+        // expect(commissionHere).to.equal(toWei(amountToken * tokenPrice * commission / (100 * 100)));
 
         const steps = 30; 
         const totalWithdrawed = await atm.getTotalWithdrawed(steps)
