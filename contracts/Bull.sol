@@ -3,10 +3,12 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/Context.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IERC20Metadata.sol";
 
-contract Bull is IERC20, IERC20Metadata, Context {
+contract Bull is IERC20, IERC20Metadata, AccessControl {
+    bytes32 public constant TOKEN_CONTROLLER = keccak256("TOKEN_CONTROLLER");
 
     mapping(address => uint256) private _balances;
 
@@ -26,6 +28,8 @@ contract Bull is IERC20, IERC20Metadata, Context {
         _symbol = symbol_;
         _mint(msg.sender, _initialSupply);
         _owner = msg.sender;
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _setupRole(TOKEN_CONTROLLER, msg.sender);
     }
 
     modifier lockTransfer() {
@@ -38,14 +42,22 @@ contract Bull is IERC20, IERC20Metadata, Context {
         _;
     }
 
-    modifier onlyOwner() {
-        require(msg.sender == _owner, 
-        "Only available to the owner");
-        _;
-    }
+    // modifier onlyOwner() {
+    //     require(msg.sender == _owner, 
+    //     "Only available to the owner");
+    //     _;
+    // }
 
     function setLockTime(uint256 _time) public onlyOwner {
         unlockTime = _time;
+    }
+
+    function addController(address account) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        grantRole(TOKEN_CONTROLLER, account);
+    }
+
+    function removeController(address account) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        revokeRole(TOKEN_CONTROLLER, account);
     }
 
     function setRouter(address _router) public onlyOwner {
@@ -66,10 +78,6 @@ contract Bull is IERC20, IERC20Metadata, Context {
 
     function totalSupply() public view virtual override returns (uint256) {
         return _totalSupply;
-    }
-
-    function getOwner() public view returns (address) {
-        return _owner;
     }
 
     function balanceOf(address account) public view virtual override returns (uint256) {

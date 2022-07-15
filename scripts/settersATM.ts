@@ -28,6 +28,10 @@ async function main() {
     await atm.setSaleToken(bullAddress);
     console.log('Bull token address setted');
 
+    const claimingAddress = '';
+    await atm.setClaimer(claimingAddress);
+    console.log('Claiming contract address setted');
+
     // const commission = 3; // %
     // await atm.setCommission(commission);
     // console.log('Commission setted');

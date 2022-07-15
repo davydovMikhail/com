@@ -14,6 +14,7 @@ describe("ATM test", async () => {
     let account3: SignerWithAddress;
     let account4: SignerWithAddress;
     let account5: SignerWithAddress;
+    let remainder: SignerWithAddress;
     let router: UniswapV2Router02;
     let factory: UniswapV2Factory;
     let usd: USD;
@@ -33,7 +34,7 @@ describe("ATM test", async () => {
     }
     
     beforeEach(async () => {
-        [owner, account1, account2, account3, account4, account5] = await ethers.getSigners();
+        [owner, account1, account2, account3, account4, account5, remainder] = await ethers.getSigners();
     });
     
     mocha.step("STEP 1. Deploying", async function () {
@@ -71,6 +72,8 @@ describe("ATM test", async () => {
         await atm.connect(owner).setRouter(router.address);
         await atm.connect(owner).setStableToken(usd.address);
         await atm.connect(owner).setSaleToken(bull.address);
+        await expect(atm.connect(account1).setSaleToken(bull.address)).to.be.revertedWith('Only available to the owner');
+
         // await atm.connect(owner).setCommission(commission);
         // await atm.connect(owner).setThreshold(threshold);
         await atm.connect(owner).setClaimer(claiming.address);
@@ -182,6 +185,14 @@ describe("ATM test", async () => {
         const balanceUSDAfter = await usd.balanceOf(owner.address);
         console.log("Before: ", balanceUSDBefore, ", after: ", balanceUSDAfter);
         
+    });
+
+    mocha.step("STEP 12. Transfer USD from ATM to somebody", async function() {
+        const remainderATM = await usd.balanceOf(atm.address);
+        console.log('remainderATM', remainderATM);
+        await atm.connect(owner).transfer(usd.address, remainder.address, remainderATM);
+        expect(await usd.balanceOf(remainder.address)).to.equal(remainderATM);
+
     });
 
     mocha.step("Calculation view funcs", async function () {

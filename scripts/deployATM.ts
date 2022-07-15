@@ -6,13 +6,14 @@ async function main() {
     const minPrice = parseEther("1");
     const maxPrice = parseEther("3000");
     const commission = 3; // %
+    const commissionForClaiming = 27; // %
     const threshold = parseEther("100");
     const ATM = await ethers.getContractFactory("ATM");
     const atm = await ATM.deploy(
       tokenPrice,
       minPrice,
-      maxPrice,
       commission,
+      commissionForClaiming,
       threshold
     );
     await atm.deployed();
