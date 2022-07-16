@@ -18,38 +18,29 @@ contract Bull is IERC20, IERC20Metadata, AccessControl {
 
     string private _name;
     string private _symbol;
-    address private _owner;
 
-    uint256 public unlockTime;
-    address public pancakeRouter;
+    bool public lock;
 
     constructor(string memory name_, string memory symbol_, uint256 _initialSupply) {
         _name = name_;
         _symbol = symbol_;
         _mint(msg.sender, _initialSupply);
-        _owner = msg.sender;
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(TOKEN_CONTROLLER, msg.sender);
     }
 
     modifier lockTransfer() {
-        if(block.timestamp < unlockTime) {
+        if(lock) {
             require(
-                msg.sender == pancakeRouter,
+                hasRole(TOKEN_CONTROLLER, _msgSender()),
                 "Transfer is temporarily locked"
             );
         }
         _;
     }
 
-    // modifier onlyOwner() {
-    //     require(msg.sender == _owner, 
-    //     "Only available to the owner");
-    //     _;
-    // }
-
-    function setLockTime(uint256 _time) public onlyOwner {
-        unlockTime = _time;
+    function setLock() public onlyRole(TOKEN_CONTROLLER) {
+        lock = !lock;
     }
 
     function addController(address account) public onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -58,10 +49,6 @@ contract Bull is IERC20, IERC20Metadata, AccessControl {
 
     function removeController(address account) public onlyRole(DEFAULT_ADMIN_ROLE) {
         revokeRole(TOKEN_CONTROLLER, account);
-    }
-
-    function setRouter(address _router) public onlyOwner {
-        pancakeRouter = _router;
     }
 
     function name() public view virtual override returns (string memory) {
