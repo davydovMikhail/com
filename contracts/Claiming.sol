@@ -52,6 +52,6 @@ contract Claiming {
         require(_amount >= 0, "Must be greater than zero");
         uint256 tokenPrice = getPrice(_amount); // вычисление суммы стейблов, которые будут переведены за токены
         IERC20(saleToken).safeTransferFrom(msg.sender, address(this), _amount);
-        IERC20(stableToken).safeTransferFrom(address(this), msg.sender, tokenPrice);
+        IERC20(stableToken).safeTransfer(msg.sender, tokenPrice);
     }
 }

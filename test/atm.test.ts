@@ -65,7 +65,14 @@ describe("ATM test", async () => {
         claiming = await Claiming.deploy(tokenPriceForClaim, usd.address, bull.address);
     });
 
-    mocha.step("STEP 2. Sets funcs", async function () {
+    mocha.step("STEP 2. Adding controller and setting lock", async () => {
+        await bull.connect(owner).addController(owner.address); 
+        await bull.connect(owner).addController(router.address); 
+        await bull.connect(owner).addController(atm.address); 
+        await bull.connect(owner).setLock();
+    });
+
+    mocha.step("STEP 3. Sets funcs", async function () {
         // await atm.connect(owner).setPrice(tokenPrice);
         // await atm.connect(owner).setMinPrice(minPrice);
         // await atm.connect(owner).setMaxPrice(maxPrice);
@@ -79,7 +86,7 @@ describe("ATM test", async () => {
         await atm.connect(owner).setClaimer(claiming.address);
     });
 
-    mocha.step("STEP 3. Gets funcs", async function () {
+    mocha.step("STEP 4. Gets funcs", async function () {
         expect(await atm.price()).to.equal(tokenPrice);
         expect(await atm.minPrice()).to.equal(minPrice);
         expect(await atm.router()).to.equal(router.address);
@@ -95,7 +102,7 @@ describe("ATM test", async () => {
         expect(await atm.claimer()).to.equal(claiming.address);
     });
 
-    mocha.step("STEP 4. Creating liquidity", async function () {
+    mocha.step("STEP 5. Creating liquidity", async function () {
         const initLiqUSD = parseEther("10");
         const initLiqBull = parseEther("0.1");
         let currentTimestamp = Math.floor(Date.now() / 1000);
@@ -113,23 +120,24 @@ describe("ATM test", async () => {
         )
     });
 
-    mocha.step("STEP 5. Checking LP balance", async function () {
+    mocha.step("STEP 6. Checking LP balance", async function () {
         const pairAddress = await factory.getPair(usd.address, bull.address);
         const PankakePair = await ethers.getContractFactory("UniswapV2Pair");
         lpToken = PankakePair.attach(pairAddress);
         const balanceOwner = await lpToken.balanceOf(owner.address);
         const theoryBalance = parseEther(Math.sqrt(1).toString());
         console.log(balanceOwner, '~=', theoryBalance);
+        await bull.connect(owner).addController(lpToken.address); 
     });
 
-    mocha.step("STEP 6. Approving USD and Bull for ATM", async function() {
+    mocha.step("STEP 7. Approving USD and Bull for ATM", async function() {
         const bullAmountForApprove = parseEther("1000");
         const stableAmountForApprove = parseEther("100000");
         await atm.connect(owner).approve(bull.address, router.address, bullAmountForApprove);
         await atm.connect(owner).approve(usd.address, router.address, stableAmountForApprove);
     });
 
-    mocha.step("STEP 7. Preparation before buying Bull Tokens for USD", async function () {
+    mocha.step("STEP 8. Preparation before buying Bull Tokens for USD", async function () {
         await usd.connect(owner).transfer(account1.address, parseEther('1000000'));
         await usd.connect(account1).approve(atm.address, parseEther('400000'));
         await usd.connect(owner).transfer(account2.address, parseEther('10000'));
@@ -146,7 +154,7 @@ describe("ATM test", async () => {
         // await expect(atm.connect(account1).buyCoin(parseEther("300001"))).to.be.revertedWith('The offer must be less');
     });
 
-    mocha.step("STEP 8. Buying Bull Tokens for USD", async function() {
+    mocha.step("STEP 9. Buying Bull Tokens for USD", async function() {
         await atm.connect(account1).buyCoin(parseEther("40000"));
         // expect(await usd.balanceOf(atm.address)).to.equal(parseEther("300"));
         await atm.connect(account2).buyCoin(parseEther("10000"));
@@ -155,7 +163,7 @@ describe("ATM test", async () => {
         await atm.connect(account5).buyCoin(parseEther("1000"));
     });
 
-    mocha.step("STEP 9. Checking balances after buying", async function() {
+    mocha.step("STEP 10. Checking balances after buying", async function() {
         expect(await bull.balanceOf(account1.address)).to.equal(parseEther("40000"));
         expect(await bull.balanceOf(account2.address)).to.equal(parseEther("10000"));
         expect(await bull.balanceOf(account3.address)).to.equal(parseEther("15000"));
@@ -163,12 +171,12 @@ describe("ATM test", async () => {
         expect(await bull.balanceOf(account5.address)).to.equal(parseEther("1000"));
     });
 
-    mocha.step("STEP 10. Checking LP balances after all buying", async function() {
+    mocha.step("STEP 11. Checking LP balances after all buying", async function() {
         const balanceOwner = await lpToken.balanceOf(owner.address);
         console.log("Must be ~ 51", balanceOwner);
     });
 
-    mocha.step("STEP 11. Removing liquidity", async function() {
+    mocha.step("STEP 12. Removing liquidity", async function() {
         const amountLiquidity = await lpToken.balanceOf(owner.address);
         let currentTimestamp = Math.floor(Date.now() / 1000);
         await lpToken.connect(owner).approve(router.address, amountLiquidity);
@@ -187,12 +195,20 @@ describe("ATM test", async () => {
         
     });
 
-    mocha.step("STEP 12. Transfer USD from ATM to somebody", async function() {
+    mocha.step("STEP 13. Transfer USD from ATM to somebody", async function() {
         const remainderATM = await usd.balanceOf(atm.address);
         console.log('remainderATM', remainderATM);
         await atm.connect(owner).transfer(usd.address, remainder.address, remainderATM);
         expect(await usd.balanceOf(remainder.address)).to.equal(remainderATM);
+    });
 
+    mocha.step("STEP 14. Claiming rewards", async function() {
+        await expect(bull.connect(account1).approve(claiming.address, parseEther('9600'))).to.be.revertedWith('Transfer is temporarily locked');
+        await bull.connect(owner).setLock();
+        await bull.connect(account1).approve(claiming.address, parseEther('9600'));
+        await claiming.connect(account1).claim(parseEther('9600'));
+        const balanceUSD = await usd.balanceOf(claiming.address);
+        console.log('Must be ~ 0:', balanceUSD);
     });
 
     mocha.step("Calculation view funcs", async function () {
